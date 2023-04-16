@@ -43,11 +43,13 @@ export class LoginComponent implements OnInit {
       }
     }).then((result) => {
       if (result.isConfirmed) {
+        console.log("1");
         if(!this.loginUser.email || !this.loginUser.password) {
           const error = this.customError("Missing username or password!", "Please enter all the fields");
           this.showError(error);
         }
         else {
+          console.log("2");
           this._authService.login(this.loginUser).subscribe(
             (res) => {
               this.redirectToHomePage();

@@ -30,6 +30,7 @@ export class AuthService {
   }
 
   public register = (user: IRegisterUser): Observable<any> => {
+    console.log("register")
     return this.httpClient.post<any>(this.registerURL, user).pipe(
       catchError((err: HttpErrorResponse) => {
         return throwError(err || this.customError);

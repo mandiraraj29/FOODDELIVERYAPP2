@@ -45,16 +45,19 @@ export class RegisterComponent implements OnInit {
       }
     }).then((result) => {
       if (result.isConfirmed) {
+        console.log("1");
         if(!this.registerUser.username || !this.registerUser.password || !this.registerUser.email) {
           const error = this.customError("Missing field found!", "Please enter all the fields");
           this.showError(error);
         }
         else {
+          console.log("2");
           if(!this.validateEmail(this.registerUser.email)) { 
             const error = this.customError("Invalid email format!", "Please enter valid email format (eg. example@example.com)");
             this.showError(error);
           }
           else {
+            console.log("3");
             this._authService.register(this.registerUser).subscribe(
               (res) => {
                 this.redirectToHomePage();
@@ -71,6 +74,7 @@ export class RegisterComponent implements OnInit {
                 }
               }
             )
+            console.log("4")
           }
         }
       }
