@@ -15,7 +15,8 @@ const userSchema = new Schema({
             hotel: String,
         }],
         amountPaid: Number,
-        orderDate: Date
+        orderDate: Date,
+        address: String
     }]
 });
 

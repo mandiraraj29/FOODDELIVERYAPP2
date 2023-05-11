@@ -5,6 +5,8 @@ import Swal from 'sweetalert2/dist/sweetalert2.js';
 import { MatSidenav } from '@angular/material/sidenav';
 import { SideNavService } from '../../services/side-nav.service';
 
+declare var Razorpay: any;
+
 @Component({
   selector: 'app-hotel',
   templateUrl: './hotel.component.html',
@@ -27,6 +29,26 @@ export class HotelComponent implements OnInit, AfterViewInit {
   public email = '';
   public userId = '';
   public isSideNavShowing: boolean = false;
+  public paymentInfo = '';
+  public cardDetails;
+  customError = (statusText, statusMessage) => {
+    return {
+      statusText: statusText,
+      message: statusMessage
+    }
+  }
+  razorPayOptions = {
+    "key": '',
+    "amount": '',
+    "currency": '',
+    "name": '',
+    "description": '',
+    "order_id": '',
+    "handler": (res) => {
+      console.log(res)
+    }
+  };
+  userAddress="";
 
   constructor(private _hotelService: HotelService, private route: ActivatedRoute, 
     private router: Router, private _sidenavService: SideNavService, private ref: ChangeDetectorRef) { }
@@ -142,45 +164,112 @@ export class HotelComponent implements OnInit, AfterViewInit {
     return this.totalAmount;
   }
 
-  openPaymentMethod = () => {
+  openPaymentMethod = async() => {
+    // address
     Swal.fire({
-      title: 'Are you sure?',
-      text: "It's just a sample confirmation message!",
       icon: 'warning',
+      title: 'Provide Address',
+      html:
+      '<input id="userAddress" type="text" class="swal2-input" autocomplete="off" placeholder="Address" required>',
       showCancelButton: true,
       confirmButtonColor: '#9c27b0',
       cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, pay bill!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        const order = {
-          menu: this.cartItems,
-          amountPaid: this.calculateAmount(),
-          orderDate: new Date()
-        }
-        this._hotelService.saveOrder(order, this.userId).subscribe(
-          (success) => {
-            Swal.fire({
-              icon: 'success',
-              title: 'Payment Successfull!',
-              text: "It's just a sample success message. We can integrate real time UPI service!",
-              showConfirmButton: true,
-              confirmButtonColor: '#9c27b0'
-            });
-          },
-          (err) => {
-            Swal.fire({
-              icon: 'warning',
-              title: 'Payment not successfull!',
-              text: "Sorry, something went wrong :(!",
-              showConfirmButton: true,
-              confirmButtonColor: '#9c27b0'
-            });
-          }
-        )
-        this.cartItems = this._hotelService.cartItems;
+      confirmButtonText: 'Confirm Address',
+      preConfirm: () => {
+          this.userAddress = (document.getElementById('userAddress') as HTMLInputElement).value
       }
+    }).then(result => {
+      if(result.isConfirmed){
+        if(!this.userAddress){
+          const error = this.customError("Address not found!", "Please enter correct address");
+          this.showError(error);
+        } else {
+          Swal.fire({
+            title: 'Payment Details',
+            text: "It's just a sample confirmation message!",
+            icon: 'warning',
+            html:' <input type="text" id="name" class="swal2-input" placeholder="name" name="name" required>' +
+            '<input type="text" id="card-number" class="swal2-input" placeholder="card number" name="card-number" required>'+
+            '<input type="text" id="expiration-date" class="swal2-input" placeholder="expiration date" name="expiration-date" required>'+
+            '<input type="text" id="cvv" class="swal2-input" placeholder="cvv" name="cvv" required>',
+            showCancelButton: true,
+            confirmButtonColor: '#9c27b0',
+            cancelButtonColor: '#d33',
+            confirmButtonText: 'Confirm Payment',
+            preConfirm: () => {
+              this.cardDetails = {
+                name: (document.getElementById('name') as HTMLInputElement).value,
+                cardNumber: (document.getElementById('card-number') as HTMLInputElement).value,
+                expirationDate: (document.getElementById('expiration-date') as HTMLInputElement).value,
+                cvv: (document.getElementById('cvv') as HTMLInputElement).value
+              }
+          }
+          }).then(result => {
+            if(result.isConfirmed) {
+              if(!this.cardDetails.name || !this.cardDetails.cardNumber || !this.cardDetails.expirationDate || !this.cardDetails.cvv){
+                const error = this.customError("Missing field found!", "Please enter all the fields");
+                this.showError(error);
+              } else if(!this.validateCardName(this.cardDetails.name)){
+                const error = this.customError("Invalid card name!", "Please enter a valid card name (letters and spaces only)");
+                this.showError(error);
+              } else if(!this.validateCreditCardNumber(this.cardDetails.cardNumber)) {
+                const error = this.customError("Invalid credit card number!", "Please enter a valid credit card number");
+                this.showError(error);
+              } else if(!this.validateCvv(this.cardDetails.cvv)) {
+                const error = this.customError("Invalid CVV!", "Please enter a valid 3 or 4 digit CVV number");
+                this.showError(error);
+              } else if(!this.validateExpirationDate(this.cardDetails.expirationDate)){
+                const error = this.customError("Invalid expiration date!", "Please enter a valid expiration date in MM/YY format");
+                this.showError(error);
+              }
+              else 
+              {
+              Swal.fire({
+                title: 'Are you sure?',
+                text: "It's just a sample confirmation message!",
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#9c27b0',
+                cancelButtonColor: '#d33',
+                confirmButtonText: 'Yes, pay bill!'
+              }).then(result => {
+                if (result.isConfirmed) {
+                  const order = {
+                    menu: this.cartItems,
+                    amountPaid: this.calculateAmount(),
+                    orderDate: new Date(),
+                    address: this.userAddress
+                  }
+                  this._hotelService.saveOrder(order, this.userId).subscribe(
+                    (success) => {
+                      Swal.fire({
+                        icon: 'success',
+                        title: 'Payment Successfull!',
+                        text: "It's just a sample success message. We can integrate real time UPI service!",
+                        showConfirmButton: true,
+                        confirmButtonColor: '#9c27b0'
+                      });
+                    },
+                    (err) => {
+                      Swal.fire({
+                        icon: 'warning',
+                        title: 'Payment not successfull!',
+                        text: "Sorry, something went wrong :(!",
+                        showConfirmButton: true,
+                        confirmButtonColor: '#9c27b0'
+                      });
+                    }
+                  )
+                  this.cartItems = this._hotelService.cartItems;
+                }
+              })
+            }}
+          })
+        }
+      }
+      
     })
+    
   }
 
   getOrderFromService = async() => {
@@ -201,6 +290,77 @@ export class HotelComponent implements OnInit, AfterViewInit {
   ngAfterViewInit(): void {
     this._sidenavService.setSidenav(this.sidenav);
   }
+
+  showError = (error) => {
+    Swal.fire({
+      icon: 'error',
+      title: error.statusText,
+      text: error.message,
+      showConfirmButton: true,
+      confirmButtonText: "Try Again",
+      confirmButtonColor: '#9c27b0',
+      allowOutsideClick: false,
+      allowEscapeKey: false,
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.openPaymentMethod();
+      }
+    })
+  }
+
+  validateCardName(cardName: string): boolean {
+    const regex = /^[a-zA-Z\s]+$/;
+    return regex.test(cardName.trim());
+  }
+
+  validateCreditCardNumber(cardNumber: string): boolean {
+    const regex = /^[0-9]{13,19}$/;
+    if (!regex.test(cardNumber)) {
+      return false;
+    }
+    let sum = 0;
+    let digit;
+    let addend;
+    let doubled = false;
+    for (let i = cardNumber.length - 1; i >= 0; i--) {
+      digit = parseInt(cardNumber.charAt(i), 10);
+      if (doubled) {
+        addend = digit * 2;
+        if (addend > 9) {
+          addend -= 9;
+        }
+      } else {
+        addend = digit;
+      }
+      sum += addend;
+      doubled = !doubled;
+    }
+    return (sum % 10) === 0;
+  }
+  
+  validateCvv(cvv: string): boolean {
+    const cvvRegex = /^[0-9]{3,4}$/;
+    return cvvRegex.test(cvv);
+  }  
+
+  validateExpirationDate(expirationDate: string): boolean {
+    // Expiration date format should be MM/YY or MM/YYYY
+    const expirationDateRegex = /^(0[1-9]|1[0-2])\/([0-9]{2}|[0-9]{4})$/;
+    if (!expirationDateRegex.test(expirationDate)) {
+      return false;
+    }
+    // Check that the expiration date is in the future
+    const [month, year] = expirationDate.split('/');
+    const expirationMonth = parseInt(month);
+    const expirationYear = parseInt(year);
+    const currentYear = new Date().getFullYear() % 100;
+    const currentMonth = new Date().getMonth() + 1;
+    if (expirationYear < currentYear || (expirationYear === currentYear && expirationMonth < currentMonth)) {
+      return false;
+    }
+    return true;
+  }
+  
 
   async ngOnInit() {
     this.scrollTop();

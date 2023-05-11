@@ -27,6 +27,7 @@ export class RegisterComponent implements OnInit {
       icon: 'info',
       title: 'Sign up / Register your account',
       html:
+
       '<input id="email" type="email" class="swal2-input" autocomplete="off" placeholder="email" required>' +
       '<input id="username" type="text" class="swal2-input" autocomplete="off" placeholder="username" required>' +
       '<input id="password" type="password" class="swal2-input" autocomplete="off" placeholder="password" required>' +
@@ -45,19 +46,25 @@ export class RegisterComponent implements OnInit {
       }
     }).then((result) => {
       if (result.isConfirmed) {
-        console.log("1");
         if(!this.registerUser.username || !this.registerUser.password || !this.registerUser.email) {
           const error = this.customError("Missing field found!", "Please enter all the fields");
           this.showError(error);
         }
         else {
-          console.log("2");
           if(!this.validateEmail(this.registerUser.email)) { 
             const error = this.customError("Invalid email format!", "Please enter valid email format (eg. example@example.com)");
             this.showError(error);
           }
+          else if (!/^[a-zA-Z_]{5,}$/.test(this.registerUser.username)) {
+            const error = this.customError("Invalid username format!", "Please enter a valid username (at least 5 characters, letters, and underscores only).");
+            this.showError(error);
+          }
+          else if (!/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)[a-zA-Z\d]{8,}$/.test(this.registerUser.password)) {
+            const error = this.customError("Invalid password format!", "Please enter a valid password (at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one digit).");
+            this.showError(error);
+          }                 
+
           else {
-            console.log("3");
             this._authService.register(this.registerUser).subscribe(
               (res) => {
                 this.redirectToHomePage();
@@ -74,7 +81,6 @@ export class RegisterComponent implements OnInit {
                 }
               }
             )
-            console.log("4")
           }
         }
       }
